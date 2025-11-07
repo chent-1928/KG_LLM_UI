@@ -1,0 +1,566 @@
+<script setup>
+import { ref, computed, reactive } from 'vue'
+import { diagnoseDisease, getDiagnosisBasis } from '../api/assistDoctor.js'
+
+const medicalRecord = reactive({
+  chiefComplaint: '',
+  presentIllness: '',
+  pastHistory: '',
+  physicalExam: '',
+  auxiliaryExam: '',
+})
+const isDiagnosing = ref(false)
+const diagnosisResult = ref(null)
+const selectedDisease = ref(null)
+const diagnosisBasis = ref(null)
+const isLoadingBasis = ref(false)
+
+const exampleRecord = {
+  chiefComplaint: '男，32岁。反复咳嗽、咳痰3个月，伴胸闷气短1周。',
+  presentIllness:
+    '3个月前无明显诱因出现咳嗽，咳白色黏痰，量不多，无发热、盗汗。近1周出现胸闷、气短，活动后加重。',
+  pastHistory: '既往体健，无特殊疾病史。',
+  physicalExam:
+    'T 36.5℃，P 88次/分，R 22次/分，BP 120/80mmHg。双肺呼吸音粗，可闻及散在湿性啰音。',
+  auxiliaryExam: '血常规正常，胸部CT示双肺散在斑片状阴影。',
+}
+
+const hasMedicalRecordInput = computed(() =>
+  Object.values(medicalRecord).some((section) => section && section.trim())
+)
+
+const buildMedicalRecordText = () => {
+  const sections = [
+    { label: '主诉', value: medicalRecord.chiefComplaint },
+    { label: '现病史', value: medicalRecord.presentIllness },
+    { label: '既往史', value: medicalRecord.pastHistory },
+    { label: '查体', value: medicalRecord.physicalExam },
+    { label: '辅助检查', value: medicalRecord.auxiliaryExam },
+  ]
+
+  return sections
+    .filter((section) => section.value && section.value.trim())
+    .map((section) => `${section.label}：${section.value.trim()}`)
+    .join('\n')
+}
+
+const loadExample = () => {
+  Object.assign(medicalRecord, exampleRecord)
+}
+
+const clearRecord = () => {
+  Object.keys(medicalRecord).forEach((key) => {
+    medicalRecord[key] = ''
+  })
+  diagnosisResult.value = null
+  selectedDisease.value = null
+  diagnosisBasis.value = null
+}
+
+const handleDiagnose = async () => {
+  const medicalRecordText = buildMedicalRecordText()
+
+  if (!medicalRecordText.trim() || isDiagnosing.value) return
+
+  isDiagnosing.value = true
+  diagnosisResult.value = null
+  selectedDisease.value = null
+  diagnosisBasis.value = null
+
+  try {
+    const result = await diagnoseDisease(medicalRecordText)
+    
+    diagnosisResult.value = {
+      diseases: result.diseases || result.diagnosis || [],
+      confidence: result.confidence || 0,
+      reasoning: result.reasoning || result.explanation || '',
+      timestamp: new Date(),
+    }
+
+    // 如果有诊断结果，默认选择第一个
+    if (diagnosisResult.value.diseases.length > 0) {
+      selectedDisease.value = diagnosisResult.value.diseases[0]
+      await loadDiagnosisBasis(diagnosisResult.value.diseases[0], medicalRecordText)
+    }
+  } catch (error) {
+    console.error('诊断错误:', error)
+    diagnosisResult.value = {
+      diseases: [],
+      confidence: 0,
+      reasoning: '诊断过程中发生错误，请稍后再试。',
+      timestamp: new Date(),
+    }
+  } finally {
+    isDiagnosing.value = false
+  }
+}
+
+const selectDisease = async (disease) => {
+  selectedDisease.value = disease
+  await loadDiagnosisBasis(disease)
+}
+
+const loadDiagnosisBasis = async (disease, recordText) => {
+  const text = recordText ?? buildMedicalRecordText()
+
+  if (!disease || !text.trim()) return
+
+  isLoadingBasis.value = true
+  diagnosisBasis.value = null
+
+  try {
+    const result = await getDiagnosisBasis(disease, text)
+    diagnosisBasis.value = {
+      basis: result.basis || result.reasoning || '',
+      suggestions: result.suggestions || result.recommendations || [],
+    }
+  } catch (error) {
+    console.error('获取诊断依据错误:', error)
+    diagnosisBasis.value = {
+      basis: '无法获取诊断依据',
+      suggestions: [],
+    }
+  } finally {
+    isLoadingBasis.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="diagnosis-panel">
+    <div class="diagnosis-header">
+      <h3>电子病历智能诊断</h3>
+      <div class="header-actions">
+        <button class="action-btn" @click="loadExample" title="加载示例病历">
+          示例
+        </button>
+        <button class="action-btn" @click="clearRecord" title="清空">
+          清空
+        </button>
+      </div>
+    </div>
+
+    <div class="diagnosis-content">
+      <div class="input-section">
+        <div class="record-grid">
+          <div class="input-group">
+            <label>主诉</label>
+            <textarea
+              v-model="medicalRecord.chiefComplaint"
+              placeholder="请输入主诉"
+              class="medical-record-input"
+              rows="3"
+              :disabled="isDiagnosing"
+            ></textarea>
+          </div>
+          <div class="input-group">
+            <label>现病史</label>
+            <textarea
+              v-model="medicalRecord.presentIllness"
+              placeholder="请输入现病史"
+              class="medical-record-input"
+              rows="3"
+              :disabled="isDiagnosing"
+            ></textarea>
+          </div>
+          <div class="input-group">
+            <label>既往史</label>
+            <textarea
+              v-model="medicalRecord.pastHistory"
+              placeholder="请输入既往史"
+              class="medical-record-input"
+              rows="3"
+              :disabled="isDiagnosing"
+            ></textarea>
+          </div>
+          <div class="input-group">
+            <label>查体</label>
+            <textarea
+              v-model="medicalRecord.physicalExam"
+              placeholder="请输入查体情况"
+              class="medical-record-input"
+              rows="3"
+              :disabled="isDiagnosing"
+            ></textarea>
+          </div>
+          <div class="input-group">
+            <label>辅助检查</label>
+            <textarea
+              v-model="medicalRecord.auxiliaryExam"
+              placeholder="请输入辅助检查结果"
+              class="medical-record-input"
+              rows="3"
+              :disabled="isDiagnosing"
+            ></textarea>
+          </div>
+        </div>
+        <button
+          @click="handleDiagnose"
+          :disabled="!hasMedicalRecordInput || isDiagnosing"
+          class="diagnose-btn"
+        >
+          <span v-if="!isDiagnosing">开始诊断</span>
+          <span v-else class="diagnosing">
+            <span class="spinner"></span>
+            诊断中...
+          </span>
+        </button>
+      </div>
+
+      <div v-if="diagnosisResult" class="result-section">
+        <div class="result-header">
+          <h4>诊断结果</h4>
+          <span class="confidence">
+            置信度: {{ (diagnosisResult.confidence * 100).toFixed(1) }}%
+          </span>
+        </div>
+
+        <div v-if="diagnosisResult.diseases.length > 0" class="diseases-list">
+          <div
+            v-for="(disease, index) in diagnosisResult.diseases"
+            :key="index"
+            :class="['disease-item', { active: selectedDisease === disease }]"
+            @click="selectDisease(disease)"
+          >
+            <div class="disease-name">{{ disease.name || disease }}</div>
+            <div v-if="disease.probability" class="disease-probability">
+              {{ (disease.probability * 100).toFixed(1) }}%
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="no-result">
+          <p>未找到明确的疾病诊断</p>
+        </div>
+
+        <div v-if="diagnosisResult.reasoning" class="reasoning">
+          <h5>诊断分析</h5>
+          <p>{{ diagnosisResult.reasoning }}</p>
+        </div>
+
+        <div v-if="selectedDisease && diagnosisBasis" class="basis-section">
+          <h5>诊断依据</h5>
+          <div class="basis-content">
+            <p>{{ diagnosisBasis.basis }}</p>
+          </div>
+
+          <div v-if="diagnosisBasis.suggestions.length > 0" class="suggestions">
+            <h6>建议</h6>
+            <ul>
+              <li v-for="(suggestion, index) in diagnosisBasis.suggestions" :key="index">
+                {{ suggestion }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div v-if="selectedDisease && isLoadingBasis" class="loading-basis">
+          <span class="spinner"></span>
+          加载诊断依据中...
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.diagnosis-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-background);
+}
+
+.diagnosis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background-soft);
+}
+
+.diagnosis-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.4rem 0.8rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: var(--color-background-soft);
+  border-color: #667eea;
+}
+
+.diagnosis-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.input-section {
+  margin-bottom: 2rem;
+}
+
+.record-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-weight: 500;
+  color: var(--color-heading);
+  font-size: 0.9rem;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--color-heading);
+  font-size: 0.95rem;
+}
+
+.medical-record-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  background: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  transition: border-color 0.3s;
+}
+
+.medical-record-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.medical-record-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.diagnose-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.diagnose-btn:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.diagnose-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.diagnosing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.result-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.5rem;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.result-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.confidence {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.diseases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.disease-item {
+  padding: 1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-background-soft);
+}
+
+.disease-item:hover {
+  border-color: #667eea;
+  background: var(--color-background);
+}
+
+.disease-item.active {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.disease-name {
+  font-weight: 500;
+  color: var(--color-heading);
+  font-size: 1rem;
+}
+
+.disease-probability {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.no-result {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.reasoning {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+}
+
+.reasoning h5 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.reasoning p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.basis-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+}
+
+.basis-section h5 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.basis-content {
+  margin-bottom: 1rem;
+}
+
+.basis-content p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.suggestions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.suggestions h6 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.suggestions ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--color-text);
+}
+
+.suggestions li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.loading-basis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+</style>
+
