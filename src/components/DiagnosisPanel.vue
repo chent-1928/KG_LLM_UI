@@ -1,19 +1,31 @@
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { diagnoseDisease, getDiagnosisBasis } from '../api/assistDoctor.js'
 
-const medicalRecord = reactive({
+const props = defineProps({
+  activeRecord: {
+    type: Object,
+    default: null,
+  },
+})
+
+const emit = defineEmits(['save-record', 'clear-active-record'])
+
+const createEmptyMedicalRecord = () => ({
   chiefComplaint: '',
   presentIllness: '',
   pastHistory: '',
   physicalExam: '',
   auxiliaryExam: '',
 })
+
+const medicalRecord = reactive(createEmptyMedicalRecord())
 const isDiagnosing = ref(false)
 const diagnosisResult = ref(null)
 const selectedDisease = ref(null)
 const diagnosisBasis = ref(null)
 const isLoadingBasis = ref(false)
+const currentRecordId = ref('')
 
 const exampleRecord = {
   chiefComplaint: '男，32岁。反复咳嗽、咳痰3个月，伴胸闷气短1周。',
@@ -48,13 +60,58 @@ const loadExample = () => {
   Object.assign(medicalRecord, exampleRecord)
 }
 
+const resetLocalDiagnosisState = () => {
+  diagnosisResult.value = null
+  selectedDisease.value = null
+  diagnosisBasis.value = null
+}
+
 const clearRecord = () => {
   Object.keys(medicalRecord).forEach((key) => {
     medicalRecord[key] = ''
   })
-  diagnosisResult.value = null
-  selectedDisease.value = null
-  diagnosisBasis.value = null
+  resetLocalDiagnosisState()
+  currentRecordId.value = ''
+  emit('clear-active-record')
+}
+
+const clonePlain = (value) => {
+  if (value === null || value === undefined) return value
+  return JSON.parse(JSON.stringify(value))
+}
+
+const persistCurrentRecord = () => {
+  if (!diagnosisResult.value) return
+
+  const now = new Date().toISOString()
+  const recordId = currentRecordId.value || `diagnosis-${Date.now()}`
+  const createdAt =
+    props.activeRecord && props.activeRecord.id === recordId
+      ? props.activeRecord.createdAt || now
+      : now
+
+  const diagnosisResultSnapshot = clonePlain(diagnosisResult.value)
+  if (diagnosisResultSnapshot && diagnosisResultSnapshot.timestamp) {
+    diagnosisResultSnapshot.timestamp =
+      diagnosisResultSnapshot.timestamp instanceof Date
+        ? diagnosisResultSnapshot.timestamp.toISOString()
+        : diagnosisResultSnapshot.timestamp
+  } else if (diagnosisResultSnapshot) {
+    diagnosisResultSnapshot.timestamp = now
+  }
+
+  const recordPayload = {
+    id: recordId,
+    createdAt,
+    updatedAt: now,
+    medicalRecord: clonePlain(medicalRecord),
+    diagnosisResult: diagnosisResultSnapshot,
+    diagnosisBasis: clonePlain(diagnosisBasis.value),
+    selectedDisease: clonePlain(selectedDisease.value),
+  }
+
+  emit('save-record', recordPayload)
+  currentRecordId.value = recordId
 }
 
 const handleDiagnose = async () => {
@@ -69,7 +126,7 @@ const handleDiagnose = async () => {
 
   try {
     const result = await diagnoseDisease(medicalRecordText)
-    
+
     diagnosisResult.value = {
       diseases: result.diseases || result.diagnosis || [],
       confidence: result.confidence || 0,
@@ -81,6 +138,8 @@ const handleDiagnose = async () => {
     if (diagnosisResult.value.diseases.length > 0) {
       selectedDisease.value = diagnosisResult.value.diseases[0]
       await loadDiagnosisBasis(diagnosisResult.value.diseases[0], medicalRecordText)
+    } else {
+      persistCurrentRecord()
     }
   } catch (error) {
     console.error('诊断错误:', error)
@@ -122,8 +181,39 @@ const loadDiagnosisBasis = async (disease, recordText) => {
     }
   } finally {
     isLoadingBasis.value = false
+    persistCurrentRecord()
   }
 }
+
+watch(
+  () => props.activeRecord,
+  (newRecord) => {
+    if (!newRecord) {
+      currentRecordId.value = ''
+      return
+    }
+
+    currentRecordId.value = newRecord.id ?? ''
+
+    Object.keys(medicalRecord).forEach((key) => {
+      medicalRecord[key] = newRecord.medicalRecord?.[key] ?? ''
+    })
+
+    if (newRecord.diagnosisResult) {
+      const result = { ...newRecord.diagnosisResult }
+      if (result.timestamp) {
+        result.timestamp = new Date(result.timestamp)
+      }
+      diagnosisResult.value = result
+    } else {
+      diagnosisResult.value = null
+    }
+
+    selectedDisease.value = newRecord.selectedDisease || null
+    diagnosisBasis.value = newRecord.diagnosisBasis || null
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

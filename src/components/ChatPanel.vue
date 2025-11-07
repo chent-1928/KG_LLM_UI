@@ -1,20 +1,22 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, watch, computed } from 'vue'
 import { sendMessage } from '../api/assistDoctor.js'
+import { createWelcomeMessage } from '../constants/chat.js'
 
-const messages = ref([])
+const props = defineProps({
+  messages: {
+    type: Array,
+    default: () => [],
+  },
+})
+
+const emit = defineEmits(['update:messages'])
+
 const inputMessage = ref('')
 const isLoading = ref(false)
 const chatContainer = ref(null)
 
-// 初始化欢迎消息
-onMounted(() => {
-  messages.value.push({
-    role: 'assistant',
-    content: '您好！我是 AssistDoctor 医疗助手。我可以回答您关于疾病的问题，也可以基于您提供的电子病历进行诊断。请告诉我您需要什么帮助？',
-    timestamp: new Date(),
-  })
-})
+const messages = computed(() => props.messages ?? [])
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -23,6 +25,21 @@ const scrollToBottom = () => {
     }
   })
 }
+
+watch(
+  () => messages.value.length,
+  () => {
+    scrollToBottom()
+  }
+)
+
+watch(
+  () => props.messages,
+  () => {
+    scrollToBottom()
+  },
+  { deep: true }
+)
 
 const sendChatMessage = async () => {
   if (!inputMessage.value.trim() || isLoading.value) return
@@ -33,7 +50,9 @@ const sendChatMessage = async () => {
     timestamp: new Date(),
   }
 
-  messages.value.push(userMessage)
+  const updatedMessages = [...messages.value, userMessage]
+  emit('update:messages', updatedMessages)
+
   const currentInput = inputMessage.value
   inputMessage.value = ''
   isLoading.value = true
@@ -42,7 +61,7 @@ const sendChatMessage = async () => {
 
   try {
     // 构建对话历史
-    const history = messages.value
+    const history = updatedMessages
       .slice(0, -1)
       .map((msg) => ({
         role: msg.role,
@@ -58,14 +77,14 @@ const sendChatMessage = async () => {
       timestamp: new Date(),
     }
 
-    messages.value.push(assistantMessage)
+    emit('update:messages', [...updatedMessages, assistantMessage])
   } catch (error) {
     const errorMessage = {
       role: 'assistant',
       content: '抱歉，发生了错误。请稍后再试。',
       timestamp: new Date(),
     }
-    messages.value.push(errorMessage)
+    emit('update:messages', [...updatedMessages, errorMessage])
   } finally {
     isLoading.value = false
     scrollToBottom()
@@ -80,13 +99,7 @@ const handleKeyPress = (event) => {
 }
 
 const clearChat = () => {
-  messages.value = [
-    {
-      role: 'assistant',
-      content: '您好！我是 AssistDoctor 医疗助手。我可以回答您关于疾病的问题，也可以基于您提供的电子病历进行诊断。请告诉我您需要什么帮助？',
-      timestamp: new Date(),
-    },
-  ]
+  emit('update:messages', [createWelcomeMessage()])
 }
 </script>
 
