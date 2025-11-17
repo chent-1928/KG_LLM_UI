@@ -79,27 +79,29 @@ const handleClear = () => {
       </button>
     </div>
 
-    <div v-if="!items.length" class="empty-state">
-      <p>暂无诊断记录，完成诊断后会自动保存。</p>
-    </div>
+    <div class="history-content">
+      <div v-if="!items.length" class="empty-state">
+        <p>暂无诊断记录，完成诊断后会自动保存。</p>
+      </div>
 
-    <ul v-else class="history-list">
-      <li
-        v-for="record in items"
-        :key="record.id"
-        :class="['history-item', { active: record.id === activeId }]"
-        @click="handleSelect(record.id)"
-      >
-        <div class="item-top">
-          <div class="item-title">{{ getDiseaseLabel(record) }}</div>
-          <button class="delete-btn" type="button" @click="(event) => handleDelete(event, record.id)">
-            ✕
-          </button>
-        </div>
-        <div class="item-summary">{{ getSummary(record) }}</div>
-        <div class="item-meta">{{ getTimeLabel(record) }}</div>
-      </li>
-    </ul>
+      <ul v-else class="history-list">
+        <li
+          v-for="record in items"
+          :key="record.id"
+          :class="['history-item', { active: record.id === activeId }]"
+          @click="handleSelect(record.id)"
+        >
+          <div class="item-top">
+            <div class="item-title">{{ getDiseaseLabel(record) }}</div>
+            <button class="delete-btn" type="button" @click="(event) => handleDelete(event, record.id)">
+              ✕
+            </button>
+          </div>
+          <div class="item-summary">{{ getSummary(record) }}</div>
+          <div class="item-meta">{{ getTimeLabel(record) }}</div>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -108,6 +110,8 @@ const handleClear = () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  height: 100%;
+  min-height: 0;
 }
 
 .history-header {
@@ -145,6 +149,26 @@ const handleClear = () => {
 .clear-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.history-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.history-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-content::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 999px;
+}
+
+.history-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .empty-state {

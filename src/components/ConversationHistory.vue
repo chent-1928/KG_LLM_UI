@@ -56,30 +56,32 @@ const handleDelete = (event, id) => {
       </button>
     </div>
 
-    <div v-if="!items.length" class="empty-state">
-      <p>暂无对话记录，点击“新增对话”开始。</p>
-    </div>
+    <div class="history-content">
+      <div v-if="!items.length" class="empty-state">
+        <p>暂无对话记录，点击“新增对话”开始。</p>
+      </div>
 
-    <ul v-else class="history-list">
-      <li
-        v-for="item in items"
-        :key="item.id"
-        :class="['history-item', { active: item.id === activeId }]"
-        @click="handleSelect(item.id)"
-      >
-        <div class="history-top">
-          <div class="history-title">{{ item.title }}</div>
-          <button class="delete-btn" type="button" @click="(event) => handleDelete(event, item.id)">
-            ✕
-          </button>
-        </div>
-        <div class="history-preview">{{ getPreview(item) }}</div>
-        <div class="history-meta">
-          <span>{{ getTimeLabel(item) }}</span>
-          <span>{{ item.messages?.length ?? 0 }} 条消息</span>
-        </div>
-      </li>
-    </ul>
+      <ul v-else class="history-list">
+        <li
+          v-for="item in items"
+          :key="item.id"
+          :class="['history-item', { active: item.id === activeId }]"
+          @click="handleSelect(item.id)"
+        >
+          <div class="history-top">
+            <div class="history-title">{{ item.title }}</div>
+            <button class="delete-btn" type="button" @click="(event) => handleDelete(event, item.id)">
+              ✕
+            </button>
+          </div>
+          <div class="history-preview">{{ getPreview(item) }}</div>
+          <div class="history-meta">
+            <span>{{ getTimeLabel(item) }}</span>
+            <span>{{ item.messages?.length ?? 0 }} 条消息</span>
+          </div>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -88,6 +90,8 @@ const handleDelete = (event, id) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  height: 100%;
+  min-height: 0;
 }
 
 .history-header {
@@ -122,6 +126,26 @@ const handleDelete = (event, id) => {
 
 .add-btn:hover {
   background: #5568d3;
+}
+
+.history-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.history-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-content::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 999px;
+}
+
+.history-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .empty-state {

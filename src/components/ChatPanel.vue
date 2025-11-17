@@ -59,8 +59,12 @@ const sendChatMessage = async () => {
 
   scrollToBottom()
 
+  // 创建初始的助手消息，用于流式更新
+  let assistantMessage = null
+  let isFirstChunk = true
+
   try {
-    // 构建对话历史
+    // 构建对话历史（转换为后端格式）
     const history = updatedMessages
       .slice(0, -1)
       .map((msg) => ({
@@ -68,23 +72,69 @@ const sendChatMessage = async () => {
         content: msg.content,
       }))
 
-    // 调用 AssistDoctor API
-    const response = await sendMessage(currentInput, history)
+    // 调用 AssistDoctor API，传入流式更新回调
+    const response = await sendMessage(currentInput, history, (chunk) => {
+      // 第一个数据块到达时，创建助手消息
+      if (isFirstChunk && chunk.fullContent) {
+        isFirstChunk = false
+        assistantMessage = {
+          role: 'assistant',
+          content: chunk.fullContent,
+          timestamp: new Date(),
+        }
+        const currentMessages = [...updatedMessages, assistantMessage]
+        emit('update:messages', currentMessages)
+      } else if (assistantMessage) {
+        // 后续数据块，更新助手消息内容
+        assistantMessage.content = chunk.fullContent
+        const currentMessages = [...updatedMessages, assistantMessage]
+        emit('update:messages', currentMessages)
+      }
+      scrollToBottom()
+    })
 
-    const assistantMessage = {
-      role: 'assistant',
-      content: response.answer || response.content || '抱歉，我无法理解您的问题。',
-      timestamp: new Date(),
+    // 确保最终内容已更新
+    const finalContent = response.answer || response.content || assistantMessage?.content || '抱歉，我无法理解您的问题。'
+    
+    // 如果没有创建助手消息（可能没有收到数据块），现在创建
+    if (!assistantMessage) {
+      assistantMessage = {
+        role: 'assistant',
+        content: finalContent,
+        timestamp: new Date(),
+      }
+    } else {
+      assistantMessage.content = finalContent
     }
-
-    emit('update:messages', [...updatedMessages, assistantMessage])
+    
+    // 如果后端返回了完整的消息列表，使用它（但需要转换格式）
+    if (response.messages && Array.isArray(response.messages)) {
+      // 将后端格式转换为前端格式
+      const convertedMessages = response.messages.map((msg, index) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: index === response.messages.length - 1 ? new Date() : (updatedMessages[index]?.timestamp || new Date()),
+      }))
+      emit('update:messages', convertedMessages)
+    } else {
+      // 否则使用当前的消息列表
+      emit('update:messages', [...updatedMessages, assistantMessage])
+    }
   } catch (error) {
-    const errorMessage = {
-      role: 'assistant',
-      content: '抱歉，发生了错误。请稍后再试。',
-      timestamp: new Date(),
+    console.error('Chat error:', error)
+    // 如果还没有创建助手消息，创建一个错误消息
+    if (!assistantMessage) {
+      assistantMessage = {
+        role: 'assistant',
+        content: '抱歉，发生了错误。请稍后再试。',
+        timestamp: new Date(),
+      }
+      emit('update:messages', [...updatedMessages, assistantMessage])
+    } else {
+      // 如果已经有助手消息，更新为错误消息
+      assistantMessage.content = '抱歉，发生了错误。请稍后再试。'
+      emit('update:messages', [...updatedMessages, assistantMessage])
     }
-    emit('update:messages', [...updatedMessages, errorMessage])
   } finally {
     isLoading.value = false
     scrollToBottom()

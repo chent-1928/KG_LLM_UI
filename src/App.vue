@@ -309,10 +309,11 @@ const handleClearActiveDiagnosisRecord = () => {
 
 <style scoped>
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--color-background);
+  overflow: hidden;
 }
 
 /* 导航栏样式 */
@@ -385,6 +386,8 @@ const handleClearActiveDiagnosisRecord = () => {
 /* 主内容区域 */
 .main-content {
   flex: 1;
+  min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 1.5rem;
@@ -400,7 +403,14 @@ const handleClearActiveDiagnosisRecord = () => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.left-panel > * {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 右侧面板 */
@@ -408,10 +418,16 @@ const handleClearActiveDiagnosisRecord = () => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   overflow: hidden;
+}
+
+.right-panel > * {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 响应式设计 */

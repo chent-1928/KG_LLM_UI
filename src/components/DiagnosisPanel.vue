@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, reactive, watch } from 'vue'
-import { diagnoseDisease, getDiagnosisBasis } from '../api/assistDoctor.js'
+import { diagnoseDisease } from '../api/assistDoctor.js'
 
 const props = defineProps({
   activeRecord: {
@@ -24,7 +24,6 @@ const isDiagnosing = ref(false)
 const diagnosisResult = ref(null)
 const selectedDisease = ref(null)
 const diagnosisBasis = ref(null)
-const isLoadingBasis = ref(false)
 const currentRecordId = ref('')
 
 const exampleRecord = {
@@ -125,19 +124,32 @@ const handleDiagnose = async () => {
   diagnosisBasis.value = null
 
   try {
-    const result = await diagnoseDisease(medicalRecordText)
+    const result = await diagnoseDisease(medicalRecord)
+
+    // 转换新 API 的响应格式
+    // API 返回: { results: [{ dia, ala, score }] }
+    // 转换为: { diseases: [{ name, analysis, score }] }
+    const diseases = (result.results || []).map((item) => {
+      return {
+        name: item.dia || '',
+        analysis: item.ala || '',
+        score: item.score || '',
+      }
+    })
 
     diagnosisResult.value = {
-      diseases: result.diseases || result.diagnosis || [],
-      confidence: result.confidence || 0,
-      reasoning: result.reasoning || result.explanation || '',
+      diseases: diseases,
       timestamp: new Date(),
     }
 
     // 如果有诊断结果，默认选择第一个
     if (diagnosisResult.value.diseases.length > 0) {
       selectedDisease.value = diagnosisResult.value.diseases[0]
-      await loadDiagnosisBasis(diagnosisResult.value.diseases[0], medicalRecordText)
+      diagnosisBasis.value = {
+        basis: diagnosisResult.value.diseases[0].analysis || '暂无诊断分析',
+        suggestions: [],
+      }
+      persistCurrentRecord()
     } else {
       persistCurrentRecord()
     }
@@ -145,8 +157,6 @@ const handleDiagnose = async () => {
     console.error('诊断错误:', error)
     diagnosisResult.value = {
       diseases: [],
-      confidence: 0,
-      reasoning: '诊断过程中发生错误，请稍后再试。',
       timestamp: new Date(),
     }
   } finally {
@@ -154,35 +164,14 @@ const handleDiagnose = async () => {
   }
 }
 
-const selectDisease = async (disease) => {
+const selectDisease = (disease) => {
   selectedDisease.value = disease
-  await loadDiagnosisBasis(disease)
-}
-
-const loadDiagnosisBasis = async (disease, recordText) => {
-  const text = recordText ?? buildMedicalRecordText()
-
-  if (!disease || !text.trim()) return
-
-  isLoadingBasis.value = true
-  diagnosisBasis.value = null
-
-  try {
-    const result = await getDiagnosisBasis(disease, text)
-    diagnosisBasis.value = {
-      basis: result.basis || result.reasoning || '',
-      suggestions: result.suggestions || result.recommendations || [],
-    }
-  } catch (error) {
-    console.error('获取诊断依据错误:', error)
-    diagnosisBasis.value = {
-      basis: '无法获取诊断依据',
-      suggestions: [],
-    }
-  } finally {
-    isLoadingBasis.value = false
-    persistCurrentRecord()
+  // 直接设置诊断依据，因为分析信息已经在疾病对象中
+  diagnosisBasis.value = {
+    basis: disease.analysis || '暂无诊断分析',
+    suggestions: [],
   }
+  persistCurrentRecord()
 }
 
 watch(
@@ -297,15 +286,15 @@ watch(
         </button>
       </div>
 
-      <div v-if="diagnosisResult" class="result-section">
+      <div v-show="diagnosisResult" class="result-section">
         <div class="result-header">
           <h4>诊断结果</h4>
-          <span class="confidence">
-            置信度: {{ (diagnosisResult.confidence * 100).toFixed(1) }}%
-          </span>
         </div>
 
-        <div v-if="diagnosisResult.diseases.length > 0" class="diseases-list">
+        <div
+          v-if="diagnosisResult && diagnosisResult.diseases.length > 0"
+          class="diseases-list"
+        >
           <div
             v-for="(disease, index) in diagnosisResult.diseases"
             :key="index"
@@ -313,8 +302,8 @@ watch(
             @click="selectDisease(disease)"
           >
             <div class="disease-name">{{ disease.name || disease }}</div>
-            <div v-if="disease.probability" class="disease-probability">
-              {{ (disease.probability * 100).toFixed(1) }}%
+            <div v-if="disease.score" class="disease-probability">
+              {{ disease.score }}
             </div>
           </div>
         </div>
@@ -323,30 +312,11 @@ watch(
           <p>未找到明确的疾病诊断</p>
         </div>
 
-        <div v-if="diagnosisResult.reasoning" class="reasoning">
-          <h5>诊断分析</h5>
-          <p>{{ diagnosisResult.reasoning }}</p>
-        </div>
-
-        <div v-if="selectedDisease && diagnosisBasis" class="basis-section">
-          <h5>诊断依据</h5>
+        <div v-if="selectedDisease && selectedDisease.analysis" class="basis-section">
+          <h5>疾病分析</h5>
           <div class="basis-content">
-            <p>{{ diagnosisBasis.basis }}</p>
+            <p>{{ selectedDisease.analysis }}</p>
           </div>
-
-          <div v-if="diagnosisBasis.suggestions.length > 0" class="suggestions">
-            <h6>建议</h6>
-            <ul>
-              <li v-for="(suggestion, index) in diagnosisBasis.suggestions" :key="index">
-                {{ suggestion }}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div v-if="selectedDisease && isLoadingBasis" class="loading-basis">
-          <span class="spinner"></span>
-          加载诊断依据中...
         </div>
       </div>
     </div>
@@ -521,12 +491,6 @@ watch(
   color: var(--color-heading);
 }
 
-.confidence {
-  font-size: 0.9rem;
-  color: #667eea;
-  font-weight: 500;
-}
-
 .diseases-list {
   display: flex;
   flex-direction: column;
@@ -575,26 +539,6 @@ watch(
   opacity: 0.7;
 }
 
-.reasoning {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: var(--color-background-soft);
-  border-radius: 8px;
-}
-
-.reasoning h5 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.reasoning p {
-  margin: 0;
-  line-height: 1.6;
-  color: var(--color-text);
-}
-
 .basis-section {
   margin-top: 1.5rem;
   padding: 1rem;
@@ -641,16 +585,6 @@ watch(
 .suggestions li {
   margin: 0.5rem 0;
   line-height: 1.6;
-}
-
-.loading-basis {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  color: var(--color-text);
-  opacity: 0.7;
 }
 </style>
 
