@@ -3,7 +3,7 @@
  * 这里留出大模型调用的接口位置
  */
 
-const API_BASE_URL = 'http://10.4.0.141:8001'
+const API_BASE_URL = 'http://IP:PORT/api'
 
 /**
  * 发送对话消息给 AssistDoctor（流式响应）
