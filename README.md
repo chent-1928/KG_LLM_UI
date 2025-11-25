@@ -42,7 +42,7 @@ API 接口调用位置在 `src/api/assistDoctor.js` 文件中，包含以下接�
 在 `src/api/assistDoctor.js` 中修改 `API_BASE_URL`：
 
 ```javascript
-const API_BASE_URL = 'http://10.4.0.141:8000/api'
+const API_BASE_URL = 'http://10.4.0.141:8001/api'
 ```
 
 ### API 接口格式

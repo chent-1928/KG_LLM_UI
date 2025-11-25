@@ -3,7 +3,7 @@
  * 这里留出大模型调用的接口位置
  */
 
-const API_BASE_URL = 'http://10.4.0.141:8000'
+const API_BASE_URL = 'http://10.4.0.141:8001'
 
 /**
  * 发送对话消息给 AssistDoctor（流式响应）
@@ -12,6 +12,8 @@ const API_BASE_URL = 'http://10.4.0.141:8000'
  * @param {Function} onChunk - 接收到数据块时的回调函数，参数为 (chunk: {content: string, done: boolean, messages?: Array, error?: string})
  * @returns {Promise} 返回完整的响应数据
  */
+
+
 export async function sendMessage(query, messages = [], onChunk = null) {
   try {
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
@@ -25,6 +27,8 @@ export async function sendMessage(query, messages = [], onChunk = null) {
         stream: true,
       }),
     })
+    console.log('22222222222222222222222222222222222222222222222222222')
+    console.log(response)
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -39,6 +43,7 @@ export async function sendMessage(query, messages = [], onChunk = null) {
 
     while (true) {
       const { done, value } = await reader.read()
+      console.log({ done, value })
       
       if (done) {
         break
@@ -52,36 +57,44 @@ export async function sendMessage(query, messages = [], onChunk = null) {
       buffer = lines.pop() || '' // 保留最后一个不完整的行
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const dataStr = line.slice(6) // 移除 'data: ' 前缀
-            const data = JSON.parse(dataStr)
-
-            if (data.error) {
-              throw new Error(data.error)
-            }
-
-            if (data.content !== undefined) {
-              fullContent += data.content
-              
-              // 调用回调函数，实时更新 UI
-              if (onChunk && typeof onChunk === 'function') {
-                onChunk({
-                  content: data.content,
-                  fullContent: fullContent,
-                  done: data.done || false,
-                })
-              }
-            }
-
-            // 如果完成，保存最终的消息列表
-            if (data.done && data.messages) {
-              finalMessages = data.messages
-            }
-          } catch (parseError) {
-            console.error('Error parsing SSE data:', parseError, line)
+        if (!line.trim()) continue;
+        // if (line.startsWith('data: ')) {
+        try {
+          // const dataStr = line.slice(6) // 移除 'data: ' 前缀
+          // const data = JSON.parse(dataStr)
+          const data = JSON.parse(line)
+          // console.log(data)
+          if (data.error) {
+            throw new Error(data.error)
           }
+
+          if (data.content !== undefined) {
+            fullContent += data.content
+              
+            // 调用回调函数，实时更新 UI
+            if (onChunk && typeof onChunk === 'function') {
+              onChunk({
+                content: data.content,
+                fullContent: fullContent,
+                done: data.done || false,
+              })
+            }
+          }
+
+          // 如果完成，保存最终的消息列表
+          // if (data.done && data.messages) {
+            if (data.done) {
+            messages.push({"role":"user", "content": query})
+            messages.push({"role":"assistant", "content": fullContent})
+            // console.log()
+            // console.log(data.messages)
+            // finalMessages = data.messages
+            finalMessages = messages
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE data:', parseError, line)
         }
+        // }
       }
     }
 

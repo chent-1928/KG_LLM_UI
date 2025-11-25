@@ -254,7 +254,7 @@ const handleClearActiveDiagnosisRecord = () => {
             :class="['tab-btn', { active: activeTab === 'chat' }]"
             @click="activeTab = 'chat'"
           >
-            💬 对话助手
+            💬 疾病咨询助手
           </button>
           <button
             :class="['tab-btn', { active: activeTab === 'diagnosis' }]"
