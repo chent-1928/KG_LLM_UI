@@ -25,15 +25,23 @@ const diagnosisResult = ref(null)
 const selectedDisease = ref(null)
 const diagnosisBasis = ref(null)
 const currentRecordId = ref('')
+const min = 4
+const max = 12
+const currentCount = ref(4) // ← 初始值可任意设（如 6）
+
+const fillWidth = computed(() => {
+  const clamped = Math.max(min, Math.min(currentCount.value, max))
+  return ((clamped - min) / (max - min)) * 100
+})
 
 const exampleRecord = {
-  chiefComplaint: '男，32岁。反复咳嗽、咳痰3个月，伴胸闷气短1周。',
+  chiefComplaint: '男，32岁。反复咳嗽、咳痰10余年，再发加重伴胸闷1周。',
   presentIllness:
-    '3个月前无明显诱因出现咳嗽，咳白色黏痰，量不多，无发热、盗汗。近1周出现胸闷、气短，活动后加重。',
-  pastHistory: '既往体健，无特殊疾病史。',
+    '患者于10余年前开始出现反复咳嗽，呈阵发性，伴咳痰，少许白色粘痰，多在感冒受凉后出现，反复就诊于当地医院，考虑慢性支气管炎，予抗感染、止咳化痰、平喘等治疗后可缓解，但症状仍反复，此次于1周前受凉后再发咳嗽、咳痰，咳白色粘痰，并感胸闷，无胸痛，无心慌，无腹痛、腹胀、腹泻，无抽搐、昏迷，无畏寒、发热，行胸部CT检查提示慢性支气管炎，今日就诊我院，起病来，患者精神软，饮食、睡眠一般，大小便未见明显异常，近期体重无明显改变。',
+  pastHistory: '否认“高血压”、“糖尿病”、“冠心病”等病史，否认“肝炎”、“肺结核”等传染病史，无药物及食物过敏史、无外伤手术史。无输血史。预防接种史不详。',
   physicalExam:
-    'T 36.5℃，P 88次/分，R 22次/分，BP 120/80mmHg。双肺呼吸音粗，可闻及散在湿性啰音。',
-  auxiliaryExam: '血常规正常，胸部CT示双肺散在斑片状阴影。',
+    'T：37.5℃，P：89次\/分，R：21次\/分，BP：136\/68mmHg。发育正常，表情自如，呼吸稍促，神志清楚，自主体位，查体合作。全身皮肤黏膜无黄染及出血点，全身浅表淋巴结无肿大。头颅无畸形，睑结无苍白，双侧瞳孔等大等圆，直径约3.0mm,对光反射灵敏，口唇无发绀，舌居中，咽稍红，扁桃体无肿大，颈软无抵抗。胸廓两侧对称，无畸形，肋间隙增宽，双侧呼吸运动对称，触诊语颤减弱，叩诊双肺呈过清音，双肺呼吸音粗，双肺可闻及少细小湿性啰音。心前区无隆起，心尖搏动不弥散，位于左侧第5肋间锁骨中线内侧0.5cm处，无震颤，叩诊心界不扩大，心率89次\/分，律齐，心音有力，心脏各瓣膜听诊区未闻及病理性杂音。腹平，未见胃肠型及蠕动波，腹壁静脉无曲张，无手术瘢痕，腹软，全腹部无压痛，无反跳痛，肝脾肋下未及，麦氏点无压痛及反跳痛，莫非氏征阴性，双肾区无压痛和叩击痛，移动性浊音阴性，肠鸣音3次\/分。肛门外生殖器未见异常，脊柱呈生理性弯曲，四肢无畸形，活动自如，双下肢无浮肿。生理反射存在，病例反射未引出。',
+  auxiliaryExam: '胸部CT示：慢性支气管炎表现。\n血液分析：白细胞11.2*109\/L，中性粒细胞比73.3%，淋巴细胞比率 19.0%，血红蛋白142g\/L，血小板245*109\/L。\n肝功能、肾功能、心肌酶、电解质、血糖、血脂、凝血功能未见明显异常，结合抗体阴性，痰未找到抗酸杆菌。',
 }
 
 const hasMedicalRecordInput = computed(() =>
@@ -107,6 +115,7 @@ const persistCurrentRecord = () => {
     diagnosisResult: diagnosisResultSnapshot,
     diagnosisBasis: clonePlain(diagnosisBasis.value),
     selectedDisease: clonePlain(selectedDisease.value),
+    currentCount: currentCount.value,
   }
 
   emit('save-record', recordPayload)
@@ -124,7 +133,7 @@ const handleDiagnose = async () => {
   diagnosisBasis.value = null
 
   try {
-    const result = await diagnoseDisease(medicalRecord)
+    const result = await diagnoseDisease(medicalRecord, currentCount.value)
 
     // 转换新 API 的响应格式
     // API 返回: { results: [{ dia, ala, score }] }
@@ -200,6 +209,10 @@ watch(
 
     selectedDisease.value = newRecord.selectedDisease || null
     diagnosisBasis.value = newRecord.diagnosisBasis || null
+    // 恢复currentCount值
+    if (newRecord.currentCount !== undefined) {
+      currentCount.value = newRecord.currentCount
+    }
   },
   { immediate: true }
 )
@@ -226,7 +239,7 @@ watch(
             <label>主诉</label>
             <textarea
               v-model="medicalRecord.chiefComplaint"
-              placeholder="请输入主诉"
+              placeholder="示例：男，32岁。反复咳嗽、咳痰10余年，再发加重伴胸闷1周。"
               class="medical-record-input"
               rows="3"
               :disabled="isDiagnosing"
@@ -236,7 +249,7 @@ watch(
             <label>现病史</label>
             <textarea
               v-model="medicalRecord.presentIllness"
-              placeholder="请输入现病史"
+              placeholder="示例：患者于10余年前开始出现反复咳嗽，呈阵发性，伴咳痰，少许白色粘痰，多在感冒受凉后出现，反复就诊于当地医院，考虑慢性支气管炎，予抗感染、止咳化痰、平喘等治疗后可缓解，但症状仍反复，此次于1周前受凉后再发咳嗽、咳痰，咳白色粘痰，并感胸闷，无胸痛，无心慌，无腹痛、腹胀、腹泻，无抽搐、昏迷，无畏寒、发热，行胸部CT检查提示慢性支气管炎，今日就诊我院，起病来，患者精神软，饮食、睡眠一般，大小便未见明显异常，近期体重无明显改变。"
               class="medical-record-input"
               rows="3"
               :disabled="isDiagnosing"
@@ -246,7 +259,7 @@ watch(
             <label>既往史</label>
             <textarea
               v-model="medicalRecord.pastHistory"
-              placeholder="请输入既往史"
+              placeholder="示例：否认“高血压”、“糖尿病”、“冠心病”等病史，否认“肝炎”、“肺结核”等传染病史，无药物及食物过敏史、无外伤手术史。无输血史。预防接种史不详。"
               class="medical-record-input"
               rows="3"
               :disabled="isDiagnosing"
@@ -256,7 +269,7 @@ watch(
             <label>查体</label>
             <textarea
               v-model="medicalRecord.physicalExam"
-              placeholder="请输入查体情况"
+              placeholder="示例：T:37.5℃ ,P:89次\/分,R:21次\/分,BP:136\/68\/mmhg。发育正常，表情自如，呼吸稍促，神志清楚，自主体位，查体合作。全身皮肤黏膜无黄染及出血点，全身浅表淋巴结无肿大。头颅无畸形，睑结无苍白，双侧瞳孔等大等圆，直径约3.0mm,对光反射灵敏，口唇无发绀，舌居中，咽稍红，扁桃体无肿大，颈软无抵抗。胸廓两侧对称，无畸形，肋间隙增宽，双侧呼吸运动对称，触诊语颤减弱，叩诊双肺呈过清音，双肺呼吸音粗，双肺可闻及少细小湿性啰音。心前区无隆起，心尖搏动不弥散，位于左侧第5肋间锁骨中线内侧0.5cm处，无震颤，叩诊心界不扩大，心率89次\/分，律齐，心音有力，心脏各瓣膜听诊区未闻及病理性杂音。腹平，未见胃肠型及蠕动波，腹壁静脉无曲张，无手术瘢痕，腹软，全腹部无压痛，无反跳痛，肝脾肋下未及，麦氏点无压痛及反跳痛，莫非氏征阴性，双肾区无压痛和叩击痛，移动性浊音阴性，肠鸣音3次\/分。肛门外生殖器未见异常，脊柱呈生理性弯曲，四肢无畸形，活动自如，双下肢无浮肿。生理反射存在，病例反射未引出。"
               class="medical-record-input"
               rows="3"
               :disabled="isDiagnosing"
@@ -266,13 +279,32 @@ watch(
             <label>辅助检查</label>
             <textarea
               v-model="medicalRecord.auxiliaryExam"
-              placeholder="请输入辅助检查结果"
+              placeholder="示例：胸部CT示：慢性支气管炎表现。\n血液分析：白细胞11.2*109\/L，中性粒细胞比73.3%，淋巴细胞比率 19.0%，血红蛋白142g\/L，血小板245*109\/L。\n肝功能、肾功能、心肌酶、电解质、血糖、血脂、凝血功能未见明显异常，结合抗体阴性，痰未找到抗酸杆菌。"
               class="medical-record-input"
               rows="3"
               :disabled="isDiagnosing"
             ></textarea>
           </div>
+          <div class="input-group">
+            <!-- ✅ 新增：允许用户自由设置数量的控件 -->
+            <label>设置初步诊断疾病数量：<span style="color:red; font-weight:500">{{currentCount}}</span>（数量越高，诊断越慢）</label>
+            <div class="control medical-record-input">
+              <!-- 或滑块 -->
+              <span>4</span>
+              <input 
+                v-model.number="currentCount" 
+                type="range" 
+                :min="min" 
+                :max="max" 
+                step="1" 
+                :disabled="isDiagnosing"
+              />
+              <span>12</span>
+            </div>
+          </div>
+         
         </div>
+
         <button
           @click="handleDiagnose"
           :disabled="!hasMedicalRecordInput || isDiagnosing"
@@ -366,6 +398,35 @@ watch(
 .action-btn:hover {
   background: var(--color-background-soft);
   border-color: #667eea;
+}
+
+.progress-bar {
+  height: 12px;
+  background-color: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.control {
+  margin-top: 12px;
+  display: flex;
+  
+  gap: 8px;
+}
+.control input[type="number"] {
+  padding: 6px;
+  width: 100px;
+}
+.control input[type="range"] {
+  width: 100%;
 }
 
 .diagnosis-content {
@@ -555,6 +616,7 @@ watch(
 
 .basis-content {
   margin-bottom: 1rem;
+  white-space: pre-wrap;
 }
 
 .basis-content p {

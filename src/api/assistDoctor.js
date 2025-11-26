@@ -3,7 +3,7 @@
  * 这里留出大模型调用的接口位置
  */
 
-const API_BASE_URL = 'http://IP:PORT/api'
+const API_BASE_URL = 'http://ip:port'
 
 /**
  * 发送对话消息给 AssistDoctor（流式响应）
@@ -27,8 +27,6 @@ export async function sendMessage(query, messages = [], onChunk = null) {
         stream: true,
       }),
     })
-    console.log('22222222222222222222222222222222222222222222222222222')
-    console.log(response)
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -125,7 +123,7 @@ export async function sendMessage(query, messages = [], onChunk = null) {
  *   - auxiliaryExam: 辅助检查
  * @returns {Promise} 返回诊断结果
  */
-export async function diagnoseDisease(medicalRecord) {
+export async function diagnoseDisease(medicalRecord, currentCount) {
   try {
     const response = await fetch(`${API_BASE_URL}/diagnosis`, {
       method: 'POST',
@@ -138,13 +136,15 @@ export async function diagnoseDisease(medicalRecord) {
         past_illness: medicalRecord.pastHistory || '',
         physical_examination: medicalRecord.physicalExam || '',
         auxiliary_exam: medicalRecord.auxiliaryExam || '',
+        top_n: Math.floor(currentCount / 2),
+        candidate_top_n: currentCount,
+        rerank_top_n: 0
       }),
     })
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-
     const data = await response.json()
     return data
   } catch (error) {

@@ -234,6 +234,33 @@ const clearDiagnosisRecords = () => {
 const handleClearActiveDiagnosisRecord = () => {
   activeDiagnosisRecordId.value = ''
 }
+
+const addDiagnosis = () => {
+  // 创建新的空白诊断记录
+  const now = new Date().toISOString()
+  const newRecord = {
+    id: `diagnosis-${Date.now()}`,
+    createdAt: now,
+    updatedAt: now,
+    medicalRecord: {
+      chiefComplaint: '',
+      presentIllness: '',
+      pastHistory: '',
+      physicalExam: '',
+      auxiliaryExam: '',
+    },
+    diagnosisResult: null,
+    diagnosisBasis: null,
+    selectedDisease: null,
+    currentCount: 4, // 默认值与DiagnosisPanel组件中的初始值一致
+  }
+  
+  // 将新记录添加到列表顶部
+  diagnosisRecords.value = [newRecord, ...diagnosisRecords.value]
+  
+  // 设置为当前活动记录
+  activeDiagnosisRecordId.value = newRecord.id
+}
 </script>
 
 <template>
@@ -284,7 +311,7 @@ const handleClearActiveDiagnosisRecord = () => {
           :active-id="activeDiagnosisRecordId"
           @select-record="selectDiagnosisRecord"
           @delete-record="deleteDiagnosisRecord"
-          @clear-records="clearDiagnosisRecords"
+          @add-diagnosis="addDiagnosis"
         />
       </aside>
 

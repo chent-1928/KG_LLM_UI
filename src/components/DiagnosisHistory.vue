@@ -12,7 +12,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select-record', 'delete-record', 'clear-records'])
+const emit = defineEmits(['select-record', 'delete-record', 'add-diagnosis'])
 
 const items = computed(() => props.records ?? [])
 
@@ -65,8 +65,8 @@ const handleDelete = (event, id) => {
   emit('delete-record', id)
 }
 
-const handleClear = () => {
-  emit('clear-records')
+const handleAdd = () => {
+  emit('add-diagnosis')
 }
 </script>
 
@@ -74,8 +74,8 @@ const handleClear = () => {
   <div class="diagnosis-history">
     <div class="history-header">
       <h3>诊断记录</h3>
-      <button class="clear-btn" type="button" :disabled="!items.length" @click="handleClear">
-        清空记录
+      <button class="add-btn" type="button" @click="handleAdd">
+        <span>＋ 新增诊断</span>
       </button>
     </div>
 
@@ -130,25 +130,22 @@ const handleClear = () => {
   color: var(--color-heading);
 }
 
-.clear-btn {
-  padding: 0.45rem 0.9rem;
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: transparent;
+  border: none;
   cursor: pointer;
-  color: var(--color-text);
-  transition: all 0.3s ease;
-  font-size: 0.85rem;
+  background: #667eea;
+  color: #fff;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
 }
 
-.clear-btn:hover:enabled {
-  border-color: #f56565;
-  color: #f56565;
-}
-
-.clear-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.add-btn:hover {
+  background: #5568d3;
 }
 
 .history-content {
