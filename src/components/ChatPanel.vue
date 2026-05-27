@@ -159,11 +159,15 @@ const clearChat = () => {
 <template>
   <div class="chat-panel">
     <div class="chat-header">
-      <h3>疾病咨询助手</h3>
+      <div class="header-left">
+        <div class="header-dot"></div>
+        <h3>疾病咨询助手</h3>
+      </div>
       <button class="clear-btn" @click="clearChat" title="清空对话">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4 7h12M7 7V5.5A1.5 1.5 0 0 1 8.5 4h3A1.5 1.5 0 0 1 13 5.5V7m2 0v8.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15.5V7h10z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        <span>清空</span>
       </button>
     </div>
 
@@ -174,11 +178,17 @@ const clearChat = () => {
         :class="['message', message.role]"
       >
         <div class="message-avatar">
-          <span v-if="message.role === 'user'">👤</span>
-          <span v-else>🤖</span>
+          <svg v-if="message.role === 'user'" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M3.5 17.5c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <svg v-else viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="3" width="14" height="14" rx="3.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 7v6M7 10h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
         </div>
-        <div class="message-content">
-          <div class="message-text">{{ message.content }}</div>
+        <div class="message-body">
+          <div class="message-bubble">{{ message.content }}</div>
           <div class="message-time">
             {{ new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}
           </div>
@@ -186,36 +196,43 @@ const clearChat = () => {
       </div>
 
       <div v-if="isLoading && isShowLoading" class="message assistant">
-        <div class="message-avatar">🤖</div>
-        <div class="message-content">
-          <div class="loading-indicator">
-            <span></span>
-            <span></span>
-            <span></span>
+        <div class="message-avatar">
+          <svg viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="3" width="14" height="14" rx="3.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 7v6M7 10h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="message-body">
+          <div class="message-bubble loading-bubble">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="chat-input-container">
-      <textarea
-        v-model="inputMessage"
-        @keypress="handleKeyPress"
-        placeholder="请输入您的问题..."
-        class="chat-input"
-        rows="3"
-        :disabled="isLoading"
-      ></textarea>
-      <button
-        @click="sendChatMessage"
-        :disabled="!inputMessage.trim() || isLoading"
-        class="send-btn"
-      >
-        <svg v-if="!isLoading" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span v-else class="loading-spinner"></span>
-      </button>
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <textarea
+          v-model="inputMessage"
+          @keypress="handleKeyPress"
+          placeholder="描述您的症状或问题..."
+          class="chat-input"
+          rows="2"
+          :disabled="isLoading"
+        ></textarea>
+        <button
+          @click="sendChatMessage"
+          :disabled="!inputMessage.trim() || isLoading"
+          class="send-btn"
+        >
+          <svg v-if="!isLoading" viewBox="0 0 20 20" fill="none">
+            <path d="M3.5 10h9M16.5 10l-6-6m6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span v-else class="loading-spinner"></span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -228,67 +245,87 @@ const clearChat = () => {
   background: var(--color-background);
 }
 
+/* ── Header ── */
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-background-soft);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  animation: pulse-dot 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 3px var(--color-primary-soft); }
+  50% { box-shadow: 0 0 0 6px transparent; }
 }
 
 .chat-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-heading);
 }
 
 .clear-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  color: var(--color-text);
-  opacity: 0.6;
-  transition: opacity 0.3s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0.4rem 0.7rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: all var(--transition-fast);
 }
 
 .clear-btn:hover {
-  opacity: 1;
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border-color: transparent;
 }
 
 .clear-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 
+/* ── Messages ── */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .message {
   display: flex;
-  gap: 0.75rem;
-  animation: fadeIn 0.3s ease;
+  gap: 0.65rem;
+  animation: msg-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .message.user {
@@ -296,158 +333,177 @@ const clearChat = () => {
 }
 
 .message-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
   flex-shrink: 0;
-  background: var(--color-background-soft);
+  background: var(--color-background-mute);
+  color: var(--color-text-muted);
+}
+
+.message-avatar svg {
+  width: 18px;
+  height: 18px;
 }
 
 .message.user .message-avatar {
-  background: #667eea;
-}
-
-.message-content {
-  max-width: 70%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  white-space: pre-wrap;
-}
-
-.message.user .message-content {
-  align-items: flex-end;
-}
-
-.message-text {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  line-height: 1.6;
-  word-wrap: break-word;
-  background: var(--color-background-soft);
-  color: var(--color-text);
-}
-
-.message.user .message-text {
-  background: #667eea;
+  background: var(--color-primary);
   color: white;
 }
 
-.message-time {
-  font-size: 0.75rem;
+.message-body {
+  max-width: 72%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  white-space: pre-wrap;
+}
+
+.message.user .message-body {
+  align-items: flex-end;
+}
+
+.message-bubble {
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  line-height: 1.65;
+  word-break: break-word;
+  background: var(--color-background-mute);
   color: var(--color-text);
-  opacity: 0.6;
-  padding: 0 0.5rem;
+  font-size: 0.935rem;
 }
 
-.loading-indicator {
+.message.user .message-bubble {
+  background: var(--color-primary-gradient);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant .message-bubble {
+  border-bottom-left-radius: 4px;
+}
+
+.message-time {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  padding: 0 0.25rem;
+}
+
+/* ── Loading dots ── */
+.loading-bubble {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 5px;
+  padding: 0.9rem 1.1rem;
 }
 
-.loading-indicator span {
-  width: 8px;
-  height: 8px;
+.dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--color-text);
-  opacity: 0.6;
-  animation: bounce 1.4s infinite ease-in-out;
+  background: var(--color-primary);
+  opacity: 0.5;
+  animation: wave 1.3s ease-in-out infinite;
 }
 
-.loading-indicator span:nth-child(1) {
-  animation-delay: -0.32s;
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-6px); opacity: 1; }
 }
 
-.loading-indicator span:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-@keyframes bounce {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
-}
-
-.chat-input-container {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
+/* ── Input area ── */
+.chat-input-area {
+  padding: 0.85rem 1.5rem 1rem;
   border-top: 1px solid var(--color-border);
-  background: var(--color-background-soft);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  background: var(--color-background-mute);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.6rem 0.5rem 0;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
 .chat-input {
   flex: 1;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-family: inherit;
+  padding: 0.45rem 0 0.45rem 0.9rem;
+  border: none;
+  font-size: 0.92rem;
   resize: none;
-  background: var(--color-background);
+  background: transparent;
   color: var(--color-text);
-  transition: border-color 0.3s;
+  line-height: 1.5;
+}
+
+.chat-input::placeholder {
+  color: var(--color-text-muted);
 }
 
 .chat-input:focus {
   outline: none;
-  border-color: #667eea;
 }
 
 .chat-input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.send-btn {
-  padding: 0.75rem 1.25rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.3s;
-  min-width: 48px;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: #5568d3;
-}
-
-.send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
+.send-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: var(--color-primary-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: translateX(2px);
+  box-shadow: var(--shadow-primary);
+}
+
+.send-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .send-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
   border-top-color: white;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 </style>
 

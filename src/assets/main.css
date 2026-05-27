@@ -3,19 +3,31 @@
 #app {
   width: 100%;
   min-height: 100vh;
-  font-weight: normal;
+  font-weight: 400;
 }
 
-a,
-.green {
+::selection {
+  background: var(--color-primary);
+  color: white;
+}
+
+a {
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+  color: var(--color-primary);
+  transition: color var(--transition-fast);
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+a:hover {
+  color: var(--color-primary-hover);
+}
+
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
+}
+
+textarea {
+  font-variant-ligatures: none;
 }

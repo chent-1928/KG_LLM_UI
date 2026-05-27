@@ -4,6 +4,7 @@ import ChatPanel from './components/ChatPanel.vue'
 import DiagnosisPanel from './components/DiagnosisPanel.vue'
 import ConversationHistory from './components/ConversationHistory.vue'
 import DiagnosisHistory from './components/DiagnosisHistory.vue'
+import KnowledgeGraph from './components/KnowledgeGraph.vue'
 import { createConversation } from './constants/chat.js'
 
 const activeTab = ref('chat') // 'chat' 或 'diagnosis'
@@ -93,7 +94,7 @@ onMounted(() => {
 
   try {
     const storedActiveTab = window.localStorage.getItem(ACTIVE_TAB_KEY)
-    if (storedActiveTab === 'chat' || storedActiveTab === 'diagnosis') {
+    if (storedActiveTab === 'chat' || storedActiveTab === 'diagnosis' || storedActiveTab === 'graph') {
       activeTab.value = storedActiveTab
     }
   } catch (error) {
@@ -265,38 +266,59 @@ const addDiagnosis = () => {
 
 <template>
   <div class="app-container">
-    <!-- 顶部导航栏 -->
     <header class="navbar">
-      <div class="navbar-content">
+      <div class="navbar-inner">
         <div class="logo">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="logo-text">AssistDoctor</span>
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="url(#logo-grad)" opacity="0.15"/>
+              <path d="M12 8v8M8 12h8" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linecap="round"/>
+              <defs>
+                <linearGradient id="logo-grad" x1="2" y1="2" x2="22" y2="22">
+                  <stop stop-color="#0d9488"/>
+                  <stop offset="1" stop-color="#2dd4bf"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="logo-text">Assist<span class="logo-accent">Doctor</span></span>
         </div>
-        <div class="nav-tabs">
+
+        <nav class="nav-tabs" role="tablist">
           <button
-            :class="['tab-btn', { active: activeTab === 'chat' }]"
-            @click="activeTab = 'chat'"
+            v-for="tab in [
+              { key: 'chat', label: '疾病咨询', icon: 'chat' },
+              { key: 'diagnosis', label: '智能诊断', icon: 'diagnosis' },
+              { key: 'graph', label: '知识图谱', icon: 'graph' },
+            ]"
+            :key="tab.key"
+            role="tab"
+            :aria-selected="activeTab === tab.key"
+            :class="['tab-btn', { active: activeTab === tab.key }]"
+            @click="activeTab = tab.key"
           >
-            💬 疾病咨询助手
+            <svg v-if="tab.icon === 'chat'" class="tab-icon" viewBox="0 0 20 20" fill="none">
+              <path d="M5 7h10M5 10.5h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M3 4.5A1.5 1.5 0 0 1 4.5 3h11A1.5 1.5 0 0 1 17 4.5v8a1.5 1.5 0 0 1-1.5 1.5H7l-3.3 2.8a.5.5 0 0 1-.7-.4V4.5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else-if="tab.icon === 'diagnosis'" class="tab-icon" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M10 7v6M7 10h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <svg v-else class="tab-icon" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="4" cy="15" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="16" cy="15" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M8.5 6.5L5.5 13M11.5 6.5L14.5 13" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            {{ tab.label }}
           </button>
-          <button
-            :class="['tab-btn', { active: activeTab === 'diagnosis' }]"
-            @click="activeTab = 'diagnosis'"
-          >
-            🔬 智能诊断
-          </button>
-        </div>
+        </nav>
       </div>
     </header>
 
-    <!-- 主内容区域 -->
-    <main class="main-content">
-      <!-- 左侧面板 -->
-      <aside class="left-panel">
+    <main class="main-content" :class="{ 'full-width': activeTab === 'graph' }">
+      <aside v-if="activeTab !== 'graph'" class="left-panel">
         <ConversationHistory
           v-if="activeTab === 'chat'"
           :conversations="conversations"
@@ -315,7 +337,6 @@ const addDiagnosis = () => {
         />
       </aside>
 
-      <!-- 右侧面板 -->
       <div class="right-panel">
         <ChatPanel
           v-if="activeTab === 'chat'"
@@ -329,6 +350,7 @@ const addDiagnosis = () => {
           @save-record="upsertDiagnosisRecord"
           @clear-active-record="handleClearActiveDiagnosisRecord"
         />
+        <KnowledgeGraph v-if="activeTab === 'graph'" />
       </div>
     </main>
   </div>
@@ -343,21 +365,20 @@ const addDiagnosis = () => {
   overflow: hidden;
 }
 
-/* 导航栏样式 */
+/* ── Navbar ── */
 .navbar {
   background: var(--color-background-soft);
   border-bottom: 1px solid var(--color-border);
-  padding: 0;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
-.navbar-content {
+.navbar-inner {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 0.75rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -366,70 +387,94 @@ const addDiagnosis = () => {
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  color: var(--color-heading);
-  font-weight: 600;
-  font-size: 1.25rem;
+  gap: 0.65rem;
+  user-select: none;
 }
 
-.logo svg {
-  width: 32px;
-  height: 32px;
-  color: #667eea;
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .logo-text {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-heading);
 }
 
+.logo-accent {
+  color: var(--color-primary);
+}
+
+/* ── Tab buttons ── */
 .nav-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.375rem;
+  background: var(--color-background-mute);
+  padding: 4px;
+  border-radius: var(--radius-md);
 }
 
 .tab-btn {
-  padding: 0.5rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.15rem;
   background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.95rem;
-  color: var(--color-text);
-  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
   font-family: inherit;
+  white-space: nowrap;
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .tab-btn:hover {
-  background: var(--color-background);
-  border-color: #667eea;
+  color: var(--color-heading);
 }
 
 .tab-btn.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+  background: var(--color-background-soft);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-xs);
+  font-weight: 600;
 }
 
-/* 主内容区域 */
+/* ── Main layout ── */
 .main-content {
   flex: 1;
   min-height: 0;
-  height: 100%;
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 290px 1fr;
+  gap: 1rem;
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem 1rem;
   overflow: hidden;
 }
 
-/* 左侧面板 */
 .left-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -440,16 +485,16 @@ const addDiagnosis = () => {
   min-height: 0;
 }
 
-/* 右侧面板 */
 .right-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  background: var(--color-background);
+  background: var(--color-background-soft);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .right-panel > * {
@@ -457,20 +502,26 @@ const addDiagnosis = () => {
   min-height: 0;
 }
 
-/* 响应式设计 */
+.main-content.full-width {
+  grid-template-columns: 1fr;
+  max-width: none;
+  padding: 0.5rem;
+}
+
+/* ── Responsive ── */
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 250px 1fr;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
   }
 }
 
 @media (max-width: 768px) {
-  .navbar-content {
-    padding: 1rem;
+  .navbar-inner {
+    padding: 0.75rem 1rem;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
   .nav-tabs {
@@ -480,7 +531,7 @@ const addDiagnosis = () => {
 
   .main-content {
     grid-template-columns: 1fr;
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .left-panel {
